@@ -4,8 +4,6 @@
 
 #include "wsclient.hpp"
 
-
-
 const int kPingIntervalSec = 10;
 const char* const kUserAgent = "websocket-to-kafka-connector";
 
@@ -177,8 +175,6 @@ template <class SocketType>
 void WsClient<SocketType>::CloseWs()
 {
   ioc_.post([this]() {
-    // TODO: probably `async_close` is the way to go
-    ws_->close(websocket::close_code::normal);
     ws_->async_close(websocket::close_code::normal, [](beast::error_code /*ec*/) {
       spdlog::info("connection is closed");
     });

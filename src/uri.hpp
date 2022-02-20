@@ -10,7 +10,8 @@ struct Uri {
 public:
   std::string QueryString, Path, Protocol, Host, Port;
 
-  static Uri Parse(const std::string &uri) {
+  static Uri Parse(const std::string& uri)
+  {
     Uri result;
 
     using iterator_t = std::string::const_iterator;
@@ -42,12 +43,11 @@ public:
 
     // host
     iterator_t host_start = protocol_end;
-    iterator_t path_start =
-        std::find(host_start, uri_end, '/'); // get pathStart
+    iterator_t path_start = std::find(host_start, uri_end, '/'); // get pathStart
 
     iterator_t host_end = std::find(
-        protocol_end, (path_start != uri_end) ? path_start : query_start,
-        ':'); // check for port
+      protocol_end, (path_start != uri_end) ? path_start : query_start,
+      ':'); // check for port
 
     result.Host = std::string(host_start, host_end);
 

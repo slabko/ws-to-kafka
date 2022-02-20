@@ -1,14 +1,13 @@
 #include "pch.h"
 
-#include <thread>
-#include <utility>
 #include <fstream>
 #include <nlohmann/json.hpp>
+#include <thread>
+#include <utility>
 
 #include "kafka_producer.hpp"
 #include "uri.hpp"
 #include "wsclient.hpp"
-
 
 using slabko::wskafka::KafkaProducer;
 using slabko::wskafka::PlainSocket;
@@ -24,7 +23,8 @@ void SignalHandler(int /*signum*/) { shutdown_handler(); }
 
 template <class Socket>
 void Run(Uri uri, std::string init_write, std::string boostrap_servers,
-         std::string topic) {
+  std::string topic)
+{
   spdlog::info("starting");
 
   std::signal(SIGINT, SignalHandler);
@@ -39,7 +39,7 @@ void Run(Uri uri, std::string init_write, std::string boostrap_servers,
     kafka_producer.Shutdown();
   };
 
-  client.SetCallback([&kafka_producer](const char *payload, size_t size) {
+  client.SetCallback([&kafka_producer](const char* payload, size_t size) {
     // TODO: set proper name for the key
     kafka_producer.Publish(payload, size, "KEY");
   });
@@ -49,7 +49,8 @@ void Run(Uri uri, std::string init_write, std::string boostrap_servers,
   client.Start();
 }
 
-int main() {
+int main()
+{
   std::string uri_string;
   std::string boostrap_servers;
   std::string topic;
