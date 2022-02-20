@@ -3,6 +3,8 @@
 A simple app that subscribes to a WebSocket and sends all events to a Kafka topic.
 It maintains the connection to the WebSocket and restarts it when needed.
 
+__Note__: This is a work in progress.
+
 # Setup
 
 Prepare the dependencies
