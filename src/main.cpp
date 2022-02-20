@@ -4,11 +4,15 @@
 #include <iostream>
 #include <librdkafka/rdkafkacpp.h>
 #include <spdlog/spdlog.h>
+#include <nlohmann/json.hpp>
 
 using namespace std::chrono_literals;
 
 int main() {
   spdlog::info("starting");
+
+  auto j = nlohmann::json::parse(R"({"happy": true, "pi": 3.141})");
+  spdlog::info(j["pi"].get<float>());
 
   auto conf = RdKafka::Conf::create(RdKafka::Conf::CONF_GLOBAL);
   std::string errstr;
