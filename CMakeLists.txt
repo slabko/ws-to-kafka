@@ -25,6 +25,7 @@ set(RDKAFKA_MIN_VERSION_HEX 0x00090400)
 
 find_package(Boost REQUIRED)
 find_package(RdKafka REQUIRED)
+find_package(spdlog REQUIRED)
 find_package(Threads REQUIRED)
 find_package(OpenSSL REQUIRED)
 
@@ -37,4 +38,5 @@ target_link_libraries(${PROJECT_NAME}
     OpenSSL::Crypto
     RdKafka::rdkafka
     RdKafka::rdkafka++ 
+    spdlog::spdlog
 )

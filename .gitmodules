@@ -4,3 +4,6 @@
 [submodule "thirdparty/src/librdkafka"]
 	path = thirdparty/src/librdkafka
 	url = https://github.com/edenhill/librdkafka.git
+[submodule "thirdparty/src/spdlog"]
+	path = thirdparty/src/spdlog
+	url = https://github.com/gabime/spdlog.git
