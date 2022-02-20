@@ -9,7 +9,7 @@ add_compile_options(-Wall)
 
 project(main)
 
-add_executable(${PROJECT_NAME} src/main.cpp)
+add_executable(${PROJECT_NAME} src/main.cpp src/wsclient.cpp src/kafka_producer.cpp)
 
 # Search in our custom directory
 set(CMAKE_PREFIX_PATH ${CMAKE_PREFIX_PATH};thirdparty/bin)
@@ -40,3 +40,5 @@ target_link_libraries(${PROJECT_NAME}
     RdKafka::rdkafka++ 
     spdlog::spdlog
 )
+
+target_precompile_headers(${PROJECT_NAME} PUBLIC src/pch.h)

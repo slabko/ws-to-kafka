@@ -1,35 +1,80 @@
-#include <boost/asio.hpp>
-#include <boost/log/trivial.hpp>
-#include <chrono>
-#include <iostream>
-#include <librdkafka/rdkafkacpp.h>
-#include <spdlog/spdlog.h>
+#include "pch.h"
+
+#include <thread>
+#include <utility>
+#include <fstream>
 #include <nlohmann/json.hpp>
+
+#include "kafka_producer.hpp"
+#include "uri.hpp"
+#include "wsclient.hpp"
+
+
+using slabko::wskafka::KafkaProducer;
+using slabko::wskafka::PlainSocket;
+using slabko::wskafka::SSLSocket;
+using slabko::wskafka::Uri;
+using slabko::wskafka::WsClient;
 
 using namespace std::chrono_literals;
 
-int main() {
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
+std::function<void()> shutdown_handler;
+void SignalHandler(int /*signum*/) { shutdown_handler(); }
+
+template <class Socket>
+void Run(Uri uri, std::string init_write, std::string boostrap_servers,
+         std::string topic) {
   spdlog::info("starting");
 
-  auto j = nlohmann::json::parse(R"({"happy": true, "pi": 3.141})");
-  spdlog::info(j["pi"].get<float>());
+  std::signal(SIGINT, SignalHandler);
 
-  auto conf = RdKafka::Conf::create(RdKafka::Conf::CONF_GLOBAL);
-  std::string errstr;
+  auto client = WsClient<Socket>(uri.Host, uri.Port, uri.Path, init_write);
 
-  if (conf->set("bootstrap.servers", "localhost:9092", errstr) !=
-      RdKafka::Conf::CONF_OK) {
-    throw std::runtime_error(errstr);
+  KafkaProducer kafka_producer(std::move(boostrap_servers), std::move(topic));
+
+  shutdown_handler = [&]() {
+    spdlog::info("shutting down");
+    client.Shutdown();
+    kafka_producer.Shutdown();
+  };
+
+  client.SetCallback([&kafka_producer](const char *payload, size_t size) {
+    // TODO: set proper name for the key
+    kafka_producer.Publish(payload, size, "KEY");
+  });
+
+  auto kafka_job = std::async([&kafka_producer]() { kafka_producer.Start(); });
+
+  client.Start();
+}
+
+int main() {
+  std::string uri_string;
+  std::string boostrap_servers;
+  std::string topic;
+  std::string message;
+
+  std::ifstream config_file("config.json");
+  if (config_file.is_open()) {
+    nlohmann::json j;
+    config_file >> j;
+
+    uri_string = j["url"].get<std::string>();
+    boostrap_servers = j["brokers"].get<std::string>();
+    topic = j["topic"].get<std::string>();
+    message = j["message"].dump();
+
+    config_file.close();
   }
 
-  boost::asio::io_context ioc;
+  auto uri = Uri::Parse(uri_string);
 
-  boost::asio::steady_timer timer(ioc);
-  timer.expires_from_now(1s);
-
-  timer.async_wait([](boost::system::error_code ec) { spdlog::info("done"); });
-
-  ioc.run();
+  if (uri.Protocol == "wss" || uri.Protocol == "https") {
+    Run<SSLSocket>(uri, message, boostrap_servers, topic);
+  } else {
+    Run<PlainSocket>(uri, message, boostrap_servers, topic);
+  }
 
   return 0;
 }
