@@ -54,11 +54,7 @@ private:
   std::string path_;
   std::string init_write_;
 
-  time_point last_ping_;
-  time_point last_pong_;
-
   buffer_type buffer_;
-  deadline_timer ping_timer_;
 
   bool keep_running_;
 
@@ -68,11 +64,6 @@ private:
 
   void DoRead();
   void OnRead(error_code ec, std::size_t n_bytes);
-
-  void DoPing(error_code ec = error_code());
-  void OnPing(error_code ec);
-
-  void OnControlFrame(control_frame cf);
 };
 
 }
