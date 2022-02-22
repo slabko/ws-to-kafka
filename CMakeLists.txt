@@ -9,7 +9,7 @@ add_compile_options(-Wall)
 
 project(main)
 
-add_executable(${PROJECT_NAME} src/main.cpp src/wsclient.cpp src/kafka_producer.cpp)
+add_executable(${PROJECT_NAME} src/main.cpp)
 
 # Search in our custom directory
 set(CMAKE_PREFIX_PATH ${CMAKE_PREFIX_PATH};thirdparty/bin)
