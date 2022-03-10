@@ -5,8 +5,37 @@
 
 namespace slabko::wskafka {
 
-using PlainSocket = boost::asio::ip::tcp::socket;
-using SSLSocket = boost::beast::ssl_stream<boost::asio::ip::tcp::socket>;
+namespace beast = boost::beast;
+namespace websocket = boost::beast::websocket;
+namespace net = boost::asio;
+namespace http = boost::beast::http;
+
+using tcp = net::ip::tcp;
+
+using PlainSocket = tcp::socket;
+using SSLSocket = beast::ssl_stream<tcp::socket>;
+using SSLStreamPtr = std::unique_ptr<websocket::stream<SSLSocket>>;
+using PlainStreamPtr = std::unique_ptr<websocket::stream<PlainSocket>>;
+
+
+inline const auto kIdleTimeout = std::chrono::seconds(10);
+inline const auto kHandshakeTimeout = std::chrono::seconds(2);
+inline const auto kErrorDelay = std::chrono::seconds(5);
+inline const char* const kUserAgent = "websocket-to-kafka-connector";
+
+void SetSniHostname(SSL* ssl, const char* hostname);
+
+template <class SocketType>
+std::unique_ptr<websocket::stream<SocketType>> SetupWebsocket(
+  net::io_context& ioc, tcp::resolver::results_type const& records, const std::string& path);
+
+template <class SocketType>
+void SetupUserAgent(websocket::stream<SocketType>& ws)
+{
+  ws.set_option(websocket::stream_base::decorator(
+    [](websocket::request_type& req) { req.set(http::field::user_agent, kUserAgent); }));
+};
+
 
 /******************************************************************************************
        Assumption
@@ -25,7 +54,7 @@ using SSLSocket = boost::beast::ssl_stream<boost::asio::ip::tcp::socket>;
 
 *******************************************************************************************/
 
-template <class SocketType>
+template <class SocketType, class Consumer>
 class WsClient final {
 
 public:
@@ -42,8 +71,8 @@ public:
 
   ~WsClient() = default;
 
-  WsClient<SocketType>& operator=(WsClient<SocketType>) = delete;
-  WsClient<SocketType>& operator=(WsClient<SocketType>&&) = delete;
+  WsClient<SocketType, Consumer>& operator=(WsClient<SocketType, Consumer>) = delete;
+  WsClient<SocketType, Consumer>& operator=(WsClient<SocketType, Consumer>&&) = delete;
 
   void SetCallback(CallbackType callback);
   void Start();
@@ -56,6 +85,7 @@ private:
   using websocket_stream = boost::beast::websocket::stream<SocketType>;
   using error_code = boost::beast::error_code;
   using io_context = boost::asio::io_context;
+
 
   io_context ioc_;
 
@@ -80,89 +110,8 @@ private:
   void OnRead(error_code ec, std::size_t n_bytes);
 };
 
-namespace {
-using namespace std::chrono_literals;
-
-namespace beast = boost::beast;
-namespace websocket = boost::beast::websocket;
-namespace net = boost::asio;
-namespace ssl = net::ssl;
-namespace http = boost::beast::http;
-
-using tcp = net::ip::tcp;
-using plain_socket = tcp::socket;
-using plain_stream_ptr = std::unique_ptr<websocket::stream<plain_socket>>;
-using ssl_socket = beast::ssl_stream<tcp::socket>;
-using ssl_stream_ptr = std::unique_ptr<websocket::stream<ssl_socket>>;
-
-const auto kIdleTimeout = 10s;
-const auto kHandshakeTimeout = 2s;
-const auto kErrorDelay = 5s;
-
-const char* const kUserAgent = "websocket-to-kafka-connector";
-
-void SetSniHostname(SSL* ssl, const char* hostname)
-{
-  if (!SSL_set_tlsext_host_name(ssl, hostname)) {
-    throw beast::system_error(beast::error_code(static_cast<int>(::ERR_get_error()), net::error::get_ssl_category()),
-      "Failed to set SNI Hostname");
-  }
-}
-
-template <class SocketType>
-void SetupUserAgent(websocket::stream<SocketType>& ws)
-{
-  ws.set_option(websocket::stream_base::decorator(
-    [](websocket::request_type& req) { req.set(http::field::user_agent, kUserAgent); }));
-};
-
-template <class SocketType>
-std::unique_ptr<websocket::stream<SocketType>> SetupWebsocket(
-  net::io_context& ioc, tcp::resolver::results_type const& records, const std::string& path);
-
-template <>
-plain_stream_ptr SetupWebsocket<plain_socket>(
-  net::io_context& ioc, tcp::resolver::results_type const& records, const std::string& path)
-{
-  auto host = records->host_name();
-  auto ws = std::make_unique<websocket::stream<tcp::socket>>(ioc);
-
-  SetupUserAgent(*ws);
-
-  auto endpoint = net::connect(beast::get_lowest_layer(*ws), records);
-  std::string host_port = host + ":" + std::to_string(endpoint.port());
-  ws->handshake(host_port, path);
-
-  return ws;
-}
-
-template <>
-ssl_stream_ptr SetupWebsocket<ssl_socket>(
-  net::io_context& ioc, tcp::resolver::results_type const& records, const std::string& path)
-{
-  auto host = records->host_name();
-  ssl::context ssl_context(net::ssl::context::tlsv12);
-  ssl_context.set_default_verify_paths();
-  ssl_context.set_verify_mode(ssl::verify_peer);
-  ssl_context.set_verify_callback(ssl::host_name_verification(host));
-
-  auto ws = std::make_unique<websocket::stream<beast::ssl_stream<tcp::socket>>>(ioc, ssl_context);
-
-  SetSniHostname(ws->next_layer().native_handle(), host.c_str());
-
-  SetupUserAgent(*ws);
-
-  auto endpoint = net::connect(beast::get_lowest_layer(*ws), records);
-  ws->next_layer().handshake(ssl::stream_base::client);
-  std::string host_port = host + ":" + std::to_string(endpoint.port());
-  ws->handshake(host_port, path);
-
-  return ws;
-}
-} // anonymous namespace
-
-template <class SocketType>
-WsClient<SocketType>::WsClient(
+template <class SocketType, class Consumer>
+WsClient<SocketType, Consumer>::WsClient(
   std::string host,
   std::string port,
   std::string path,
@@ -175,15 +124,17 @@ WsClient<SocketType>::WsClient(
 {
 }
 
-template <class SocketType>
-void WsClient<SocketType>::SetCallback(std::function<void(const char*, size_t)> callback)
+template <class SocketType, class Consumer>
+void WsClient<SocketType, Consumer>::SetCallback(std::function<void(const char*, size_t)> callback)
 {
   callback_ = std::move(callback);
 }
 
-template <class SocketType>
-void WsClient<SocketType>::Start()
+template <class SocketType, class Consumer>
+void WsClient<SocketType, Consumer>::Start()
 {
+
+
   while (keep_running_) {
     try {
       tcp::resolver resolver(ioc_);
@@ -220,8 +171,8 @@ void WsClient<SocketType>::Start()
   }
 }
 
-template <class SocketType>
-void WsClient<SocketType>::CloseWs()
+template <class SocketType, class Consumer>
+void WsClient<SocketType, Consumer>::CloseWs()
 {
   ioc_.post([this]() {
     if (ws_->is_open()) {
@@ -233,16 +184,16 @@ void WsClient<SocketType>::CloseWs()
   });
 }
 
-template <class SocketType>
-void WsClient<SocketType>::Shutdown()
+template <class SocketType, class Consumer>
+void WsClient<SocketType, Consumer>::Shutdown()
 {
   keep_running_ = false;
   CloseWs();
   callback_ = nullptr;
 }
 
-template <class SocketType>
-void WsClient<SocketType>::DoRead()
+template <class SocketType, class Consumer>
+void WsClient<SocketType, Consumer>::DoRead()
 {
   buffer_.clear();
 
@@ -251,8 +202,8 @@ void WsClient<SocketType>::DoRead()
   });
 }
 
-template <class SocketType>
-void WsClient<SocketType>::OnRead(error_code ec, std::size_t /*n_bytes*/)
+template <class SocketType, class Consumer>
+void WsClient<SocketType, Consumer>::OnRead(error_code ec, std::size_t /*n_bytes*/)
 {
   if (ec && (ec == websocket::error::closed || ec == beast::errc::operation_canceled)) {
     return;

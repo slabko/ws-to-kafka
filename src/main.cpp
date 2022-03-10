@@ -15,23 +15,25 @@ using slabko::wskafka::SSLSocket;
 using slabko::wskafka::Uri;
 using slabko::wskafka::WsClient;
 
-using namespace std::chrono_literals;
-
 // NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 std::function<void()> shutdown_handler;
 void SignalHandler(int /*signum*/) { shutdown_handler(); }
 
 template <class Socket>
-void Run(Uri uri, std::string init_write, std::string boostrap_servers,
-  std::string topic)
+void Run(
+  Uri uri,
+  const std::string& init_write,
+  const std::string& boostrap_servers,
+  const std::string& topic,
+  const std::string& key)
 {
   spdlog::info("starting");
 
   std::signal(SIGINT, SignalHandler);
 
-  auto client = WsClient<Socket>(uri.Host, uri.Port, uri.Path, init_write);
+  auto client = WsClient<Socket, int>(uri.Host, uri.Port, uri.Path, init_write);
 
-  KafkaProducer kafka_producer(std::move(boostrap_servers), std::move(topic));
+  KafkaProducer kafka_producer(boostrap_servers, topic);
 
   shutdown_handler = [&]() {
     spdlog::info("shutting down");
@@ -39,9 +41,9 @@ void Run(Uri uri, std::string init_write, std::string boostrap_servers,
     kafka_producer.Shutdown();
   };
 
-  client.SetCallback([&kafka_producer](const char* payload, size_t size) {
+  client.SetCallback([&key, &kafka_producer](const char* payload, size_t size) {
     // TODO: set proper name for the key
-    kafka_producer.Publish(payload, size, "KEY");
+    kafka_producer.Publish(payload, size, key);
   });
 
   auto kafka_job = std::async([&kafka_producer]() { kafka_producer.Start(); });
@@ -55,6 +57,7 @@ int main()
   std::string boostrap_servers;
   std::string topic;
   std::string message;
+  std::string key;
 
   std::ifstream config_file("config.json");
   if (config_file.is_open()) {
@@ -64,6 +67,7 @@ int main()
     uri_string = j["url"].get<std::string>();
     boostrap_servers = j["brokers"].get<std::string>();
     topic = j["topic"].get<std::string>();
+    key = j["key"].get<std::string>();
     message = j["message"].dump();
 
     config_file.close();
@@ -72,9 +76,9 @@ int main()
   auto uri = Uri::Parse(uri_string);
 
   if (uri.Protocol == "wss" || uri.Protocol == "https") {
-    Run<SSLSocket>(uri, message, boostrap_servers, topic);
+    Run<SSLSocket>(uri, message, boostrap_servers, topic, key);
   } else {
-    Run<PlainSocket>(uri, message, boostrap_servers, topic);
+    Run<PlainSocket>(uri, message, boostrap_servers, topic, key);
   }
 
   return 0;
