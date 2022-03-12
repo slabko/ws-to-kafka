@@ -9,8 +9,6 @@ add_compile_options(-Wall)
 
 project(main)
 
-add_executable(${PROJECT_NAME} src/main.cpp src/kafka_producer.cpp src/wsclient.cpp)
-
 # Search in our custom directory
 set(CMAKE_PREFIX_PATH ${CMAKE_PREFIX_PATH};thirdparty/bin)
 
@@ -29,16 +27,5 @@ find_package(spdlog REQUIRED)
 find_package(Threads REQUIRED)
 find_package(OpenSSL REQUIRED)
 
-target_include_directories(${PROJECT_NAME} PRIVATE ${Boost_INCLUDE_DIRS})
-
-
-target_link_libraries(${PROJECT_NAME} 
-    Threads::Threads
-    OpenSSL::SSL
-    OpenSSL::Crypto
-    RdKafka::rdkafka
-    RdKafka::rdkafka++ 
-    spdlog::spdlog
-)
-
-target_precompile_headers(${PROJECT_NAME} PUBLIC src/pch.h)
+add_subdirectory(src/wssource)
+add_subdirectory(src/s3sink)

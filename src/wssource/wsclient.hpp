@@ -1,4 +1,4 @@
-#include "pch.h"
+#include "../pch.h"
 
 #ifndef WSCLIENT_H_INCLUDED
 #define WSCLIENT_H_INCLUDED
