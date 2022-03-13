@@ -21,11 +21,12 @@ set(Boost_USE_MULTITHREADED ON)
 set(RDKAFKA_MIN_VERSION "0.9.4")
 set(RDKAFKA_MIN_VERSION_HEX 0x00090400)
 
-find_package(Boost REQUIRED)
+find_package(Boost REQUIRED iostreams)
 find_package(RdKafka REQUIRED)
 find_package(spdlog REQUIRED)
 find_package(Threads REQUIRED)
 find_package(OpenSSL REQUIRED)
+find_package(AWSSDK REQUIRED COMPONENTS s3)
 
 add_subdirectory(src/wssource)
 add_subdirectory(src/s3sink)
