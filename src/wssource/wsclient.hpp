@@ -17,7 +17,6 @@ using SSLSocket = beast::ssl_stream<tcp::socket>;
 using SSLStreamPtr = std::unique_ptr<websocket::stream<SSLSocket>>;
 using PlainStreamPtr = std::unique_ptr<websocket::stream<PlainSocket>>;
 
-
 inline const auto kIdleTimeout = std::chrono::seconds(10);
 inline const auto kHandshakeTimeout = std::chrono::seconds(2);
 inline const auto kErrorDelay = std::chrono::seconds(5);
@@ -35,7 +34,6 @@ void SetupUserAgent(websocket::stream<SocketType>& ws)
   ws.set_option(websocket::stream_base::decorator(
     [](websocket::request_type& req) { req.set(http::field::user_agent, kUserAgent); }));
 };
-
 
 /******************************************************************************************
        Assumption
@@ -76,6 +74,7 @@ public:
 
   void SetCallback(CallbackType callback);
   void Start();
+  void Write(const std::string& msg);
   void Shutdown();
 
 private:
@@ -85,7 +84,6 @@ private:
   using websocket_stream = boost::beast::websocket::stream<SocketType>;
   using error_code = boost::beast::error_code;
   using io_context = boost::asio::io_context;
-
 
   io_context ioc_;
 
@@ -133,8 +131,6 @@ void WsClient<SocketType, Consumer>::SetCallback(std::function<void(const char*,
 template <class SocketType, class Consumer>
 void WsClient<SocketType, Consumer>::Start()
 {
-
-
   while (keep_running_) {
     try {
       tcp::resolver resolver(ioc_);
@@ -172,14 +168,15 @@ void WsClient<SocketType, Consumer>::Start()
 }
 
 template <class SocketType, class Consumer>
-void WsClient<SocketType, Consumer>::CloseWs()
+void WsClient<SocketType, Consumer>::Write(const std::string& message)
 {
-  ioc_.post([this]() {
+  ioc_.post([this, message]() { // copy of the message is requared
     if (ws_->is_open()) {
-      ws_->async_close(websocket::close_code::normal,
-        [](error_code ec) {
-          spdlog::info("connection is closed with description {}", ec.message());
-        });
+      error_code ec;
+      ws_->write(net::buffer(message), ec);
+      if (ec) {
+        spdlog::warn("Failed to write to the websocket.\nMesssage {}\nReason: {}", message, ec.message());
+      }
     }
   });
 }
@@ -190,6 +187,19 @@ void WsClient<SocketType, Consumer>::Shutdown()
   keep_running_ = false;
   CloseWs();
   callback_ = nullptr;
+}
+
+template <class SocketType, class Consumer>
+void WsClient<SocketType, Consumer>::CloseWs()
+{
+  ioc_.post([this]() {
+    if (ws_->is_open()) {
+      ws_->async_close(websocket::close_code::normal,
+        [](error_code ec) {
+          spdlog::info("connection is closed with description {}", ec.message());
+        });
+    }
+  });
 }
 
 template <class SocketType, class Consumer>

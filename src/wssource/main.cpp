@@ -48,6 +48,18 @@ void Run(
 
   auto kafka_job = std::async([&kafka_producer]() { kafka_producer.Start(); });
 
+  // TODO: With this block SIGINT no longer works
+  std::thread snapshot_cycle([&client]() {
+    while (true) {
+      std::this_thread::sleep_for(std::chrono::seconds(5));
+      client.Write(R"({"action":"getBook","market":"BTC-EUR"})");
+      client.Write(R"({"action":"getBook","market":"ETH-EUR"})");
+    }
+  });
+
+  // TODO: Find a better way to cancel the timer
+  snapshot_cycle.detach();
+
   client.Start();
 }
 
