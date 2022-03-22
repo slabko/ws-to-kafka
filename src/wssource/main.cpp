@@ -5,10 +5,12 @@
 #include <thread>
 #include <utility>
 
+#include "interval_timer.hpp"
 #include "kafka_producer.hpp"
 #include "uri.hpp"
 #include "wsclient.hpp"
 
+using slabko::wskafka::IntervalTimer;
 using slabko::wskafka::KafkaProducer;
 using slabko::wskafka::PlainSocket;
 using slabko::wskafka::SSLSocket;
@@ -42,25 +44,24 @@ void Run(
   };
 
   client.SetCallback([&key, &kafka_producer](const char* payload, size_t size) {
-    // TODO: set proper name for the key
     kafka_producer.Publish(payload, size, key);
   });
 
   auto kafka_job = std::async([&kafka_producer]() { kafka_producer.Start(); });
 
-  // TODO: With this block SIGINT no longer works
-  std::thread snapshot_cycle([&client]() {
-    while (true) {
-      std::this_thread::sleep_for(std::chrono::seconds(5));
-      client.Write(R"({"action":"getBook","market":"BTC-EUR"})");
-      client.Write(R"({"action":"getBook","market":"ETH-EUR"})");
-    }
+  auto book_snapshot_timer = IntervalTimer(std::chrono::seconds(5), [&client]() {
+    client.Write(R"({"action":"getBook","market":"BTC-EUR"})");
+    client.Write(R"({"action":"getBook","market":"ETH-EUR"})");
   });
 
-  // TODO: Find a better way to cancel the timer
-  snapshot_cycle.detach();
+  auto book_snapshot_thread = std::thread([&book_snapshot_timer]() {
+    book_snapshot_timer.Start();
+  });
 
   client.Start();
+
+  book_snapshot_timer.Stop();
+  book_snapshot_thread.join();
 }
 
 int main()
