@@ -27,7 +27,9 @@ void Run(
   const std::string& init_write,
   const std::string& boostrap_servers,
   const std::string& topic,
-  const std::string& key)
+  const std::string& key,
+  // const std::vector<std::string> interval_messages,
+  std::chrono::seconds interval)
 {
   spdlog::info("starting");
 
@@ -49,7 +51,7 @@ void Run(
 
   auto kafka_job = std::async([&kafka_producer]() { kafka_producer.Start(); });
 
-  auto book_snapshot_timer = IntervalTimer(std::chrono::seconds(5), [&client]() {
+  auto book_snapshot_timer = IntervalTimer(std::chrono::seconds(interval), [&client]() {
     client.Write(R"({"action":"getBook","market":"BTC-EUR"})");
     client.Write(R"({"action":"getBook","market":"ETH-EUR"})");
   });
@@ -71,6 +73,7 @@ int main()
   std::string topic;
   std::string message;
   std::string key;
+  int interval_seconds{};
 
   std::ifstream config_file("config.json");
   if (config_file.is_open()) {
@@ -82,16 +85,22 @@ int main()
     topic = j["topic"].get<std::string>();
     key = j["key"].get<std::string>();
     message = j["message"].dump();
+    interval_seconds = j["interval_messages"]["interval"].get<int>();
+    spdlog::info("Interval {}", interval_seconds);
+
+    auto interval_messages = j["interval_messages"]["messages"].items();
 
     config_file.close();
   }
 
+  auto interval = std::chrono::seconds(interval_seconds);
+
   auto uri = Uri::Parse(uri_string);
 
   if (uri.Protocol == "wss" || uri.Protocol == "https") {
-    Run<SSLSocket>(uri, message, boostrap_servers, topic, key);
+    Run<SSLSocket>(uri, message, boostrap_servers, topic, key, interval);
   } else {
-    Run<PlainSocket>(uri, message, boostrap_servers, topic, key);
+    Run<PlainSocket>(uri, message, boostrap_servers, topic, key, interval);
   }
 
   return 0;
