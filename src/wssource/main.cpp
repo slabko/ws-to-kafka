@@ -28,7 +28,7 @@ void Run(
   const std::string& boostrap_servers,
   const std::string& topic,
   const std::string& key,
-  // const std::vector<std::string> interval_messages,
+  const std::vector<std::string>& interval_messages,
   std::chrono::seconds interval)
 {
   spdlog::info("starting");
@@ -51,9 +51,10 @@ void Run(
 
   auto kafka_job = std::async([&kafka_producer]() { kafka_producer.Start(); });
 
-  auto book_snapshot_timer = IntervalTimer(std::chrono::seconds(interval), [&client]() {
-    client.Write(R"({"action":"getBook","market":"BTC-EUR"})");
-    client.Write(R"({"action":"getBook","market":"ETH-EUR"})");
+  auto book_snapshot_timer = IntervalTimer(std::chrono::seconds(interval), [&client, &interval_messages]() {
+    for (const auto& message : interval_messages) {
+      client.Write(message);
+    }
   });
 
   auto book_snapshot_thread = std::thread([&book_snapshot_timer]() {
@@ -73,7 +74,8 @@ int main()
   std::string topic;
   std::string message;
   std::string key;
-  int interval_seconds{};
+  int interval_seconds {};
+  std::vector<std::string> interval_messages;
 
   std::ifstream config_file("config.json");
   if (config_file.is_open()) {
@@ -86,9 +88,10 @@ int main()
     key = j["key"].get<std::string>();
     message = j["message"].dump();
     interval_seconds = j["interval_messages"]["interval"].get<int>();
-    spdlog::info("Interval {}", interval_seconds);
 
-    auto interval_messages = j["interval_messages"]["messages"].items();
+    for (auto& message : j["interval_messages"]["messages"]) {
+      interval_messages.emplace_back(message.dump());
+    }
 
     config_file.close();
   }
@@ -98,9 +101,9 @@ int main()
   auto uri = Uri::Parse(uri_string);
 
   if (uri.Protocol == "wss" || uri.Protocol == "https") {
-    Run<SSLSocket>(uri, message, boostrap_servers, topic, key, interval);
+    Run<SSLSocket>(uri, message, boostrap_servers, topic, key, interval_messages, interval);
   } else {
-    Run<PlainSocket>(uri, message, boostrap_servers, topic, key, interval);
+    Run<PlainSocket>(uri, message, boostrap_servers, topic, key, interval_messages, interval);
   }
 
   return 0;

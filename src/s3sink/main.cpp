@@ -1,9 +1,16 @@
 #include "../pch.h"
 
-#include "message_store.hpp"
 #include <ostream>
 #include <sstream>
+
 #include <aws/core/Aws.h>
+#include <nlohmann/json.hpp>
+
+#include "message_store.hpp"
+
+const unsigned int kFileSize = 10 * 1025 * 1024;
+const unsigned int kBufferSize = 11 * 1024 * 1024;
+const unsigned int kPullTimeoutMs = 1000;
 
 using slabko::s3sink::MessageStore;
 
@@ -43,16 +50,26 @@ int main()
     return 1;
   }
 
-  std::vector<std::string> topics { "panda-1" };
+  std::string topic;
+  std::ifstream config_file("config.json");
+  if (config_file.is_open()) {
+    nlohmann::json j;
+    config_file >> j;
+    topic = j["topic"].get<std::string>();
+    config_file.close();
+  }
+
+  std::vector<std::string> topics { topic };
   RdKafka::ErrorCode err = consumer->subscribe(topics);
   if (err) {
     spdlog::critical("Failed to subscribe to {} topics: {}", topics.size(), RdKafka::err2str(err));
     return 1;
   }
 
-  MessageStore message_store { 10 * 1025 * 1024 };
+
+  MessageStore message_store { kBufferSize };
   while (true) {
-    auto msg = std::unique_ptr<RdKafka::Message> { consumer->consume(1000) };
+    auto msg = std::unique_ptr<RdKafka::Message> { consumer->consume(kPullTimeoutMs) };
     switch (msg->err()) {
     case RdKafka::ERR__TIMED_OUT:
       break;
@@ -60,19 +77,17 @@ int main()
       auto ts = msg->timestamp().timestamp;
       if (!message_store.IsRunningCheckpoint()) {
         auto offset = msg->offset();
-        std::string filename { std::to_string(ts) + "_" + std::to_string(offset) + ".txt" };
+        std::string filename { topic + "_" + std::to_string(ts) + "_" + std::to_string(offset) + ".txt" };
         message_store.BeginCheckpoint(filename);
       }
 
       using namespace std::string_literals;
-      spdlog::info("Message with size {}", msg->len());
       message_store.Push(std::to_string(ts));
       message_store.Push(" "s);
-      message_store.Push(static_cast<const char*>(msg->payload()), msg->len());
+      message_store.Push(static_cast<const char*>(msg->payload()), static_cast<unsigned int>(msg->len()));
       message_store.Push("\n"s);
-      spdlog::info("Store size is {}", message_store.Size());
 
-      if (message_store.Size() > (1024 * 1024)) {
+      if (message_store.Size() > (kFileSize)) {
         spdlog::info("Commiting checkpoint");
         message_store.CommitCheckpoint();
         consumer->commitSync(msg.get());
