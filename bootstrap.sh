@@ -8,7 +8,7 @@ git submodule update --init --recursive
 mkdir thirdparty/bin
 
 cd thirdparty/src/boost && \
-./bootstrap.sh --prefix=$(pwd)/../../bin && \
+./bootstrap.sh --prefix=$(pwd)/../../bin --with-libraries=system,coroutine,regex,iostreams && \
 ./b2 && \
 ./b2 install && \
 cd ../../..
