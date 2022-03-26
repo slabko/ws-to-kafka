@@ -31,14 +31,22 @@ It expects a configuration file, `config.json` in the working directory. Here is
 {
   "url": "wss://ws.bitvavo.com/v2/",
   "brokers": "localhost:9092",
-  "topic": "websocket_1",
+  "topic": "panda-1",
+  "key": "websocket_1",
   "message": {
     "action": "subscribe",
     "channels": [
       {
-        "name": "trades",
+        "name": "book",
         "markets": ["BTC-EUR", "ETH-EUR"]
       }
+    ]
+  },
+  "interval_messages": {
+    "interval": 120,
+    "messages": [
+      { "action": "getBook", "market": "BTC-EUR" },
+      { "action": "getBook", "market": "ETH-EUR" }
     ]
   }
 }
