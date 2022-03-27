@@ -16,6 +16,18 @@ using slabko::s3sink::MessageStore;
 
 int main()
 {
+  std::string topic;
+  std::string boostrap_servers;
+
+  std::ifstream config_file("config.json");
+  if (config_file.is_open()) {
+    nlohmann::json j;
+    config_file >> j;
+    topic = j["topic"].get<std::string>();
+    boostrap_servers = j["brokers"].get<std::string>();
+    config_file.close();
+  }
+
   Aws::SDKOptions options;
   options.loggingOptions.logLevel = Aws::Utils::Logging::LogLevel::Debug;
   Aws::InitAPI(options);
@@ -24,7 +36,7 @@ int main()
     RdKafka::Conf::create(RdKafka::Conf::CONF_GLOBAL));
   std::string errstr;
 
-  if (conf->set("metadata.broker.list", "localhost:9092", errstr) != RdKafka::Conf::CONF_OK) {
+  if (conf->set("metadata.broker.list", boostrap_servers, errstr) != RdKafka::Conf::CONF_OK) {
     spdlog::critical(errstr);
     return 0;
   }
@@ -48,15 +60,6 @@ int main()
   if (!consumer) {
     spdlog::critical("Failed to create consumer: {}", errstr);
     return 1;
-  }
-
-  std::string topic;
-  std::ifstream config_file("config.json");
-  if (config_file.is_open()) {
-    nlohmann::json j;
-    config_file >> j;
-    topic = j["topic"].get<std::string>();
-    config_file.close();
   }
 
   std::vector<std::string> topics { topic };
