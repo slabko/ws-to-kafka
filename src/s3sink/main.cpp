@@ -91,7 +91,11 @@ int main()
 
       if (message_store.CompressedSize() > (kFileSize)) {
         spdlog::info("Commiting checkpoint");
-        message_store.CommitCheckpoint();
+        bool success = message_store.CommitCheckpoint();
+        if (!success) {
+          spdlog::critical("Failed to upload checkpoint");
+          return 0;
+        }
         consumer->commitSync(msg.get());
       }
 
