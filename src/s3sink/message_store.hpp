@@ -13,7 +13,7 @@ public:
   [[nodiscard]] bool IsRunningCheckpoint() const { return is_running_checkpoint_; };
   void Push(const char* msg, int64_t length);
   void Push(const std::string& msg);
-  void CommitCheckpoint();
+  [[nodiscard]] bool CommitCheckpoint();
   [[nodiscard]] size_t Size() const { return size_; }
   [[nodiscard]] size_t CompressedSize() const { return buffer_.size(); }
 

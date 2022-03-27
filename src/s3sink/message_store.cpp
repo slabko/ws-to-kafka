@@ -45,7 +45,7 @@ void MessageStore::Push(const std::string& msg)
   ostream_.write(msg.c_str(), msg.length());
 }
 
-void MessageStore::CommitCheckpoint()
+bool MessageStore::CommitCheckpoint()
 {
   spdlog::info("Uploading {}", checkpoint_name_);
   io::close(ostream_);
@@ -65,11 +65,12 @@ void MessageStore::CommitCheckpoint()
     spdlog::info("Uploaded {}", checkpoint_name_);
   } else {
     spdlog::error("Failed to upload {}: {}", checkpoint_name_, put_object_outcome.GetError().GetMessage());
-    return;
+    return false;
   }
 
   checkpoint_name_ = "";
   is_running_checkpoint_ = false;
+  return true;
 }
 
 }
