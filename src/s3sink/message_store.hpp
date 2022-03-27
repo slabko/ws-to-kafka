@@ -15,6 +15,7 @@ public:
   void Push(const std::string& msg);
   void CommitCheckpoint();
   [[nodiscard]] size_t Size() const { return size_; }
+  [[nodiscard]] size_t CompressedSize() const { return buffer_.size(); }
 
 private:
   size_t max_size_;

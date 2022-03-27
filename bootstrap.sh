@@ -10,8 +10,7 @@ mkdir bin
 
 # Boost
 
-git clone --depth 1 -b ws-write https://github.com/slabko/ws-to-kafka.git 
-wget https://boostorg.jfrog.io/artifactory/main/release/1.78.0/source/boost_1_78_0.tar.gz
+wget -q https://boostorg.jfrog.io/artifactory/main/release/1.78.0/source/boost_1_78_0.tar.gz
 tar xzf boost_1_78_0.tar.gz
 mv boost_1_78_0/* src/boost
 rm -r boost_1_78_0
@@ -25,7 +24,7 @@ cd ../..
 
 # LibRdKafka
 
-wget https://github.com/edenhill/librdkafka/archive/refs/tags/v1.6.2.tar.gz -O librdkafka.tar.gz
+wget -q https://github.com/edenhill/librdkafka/archive/refs/tags/v1.6.2.tar.gz -O librdkafka.tar.gz
 tar xzf librdkafka.tar.gz
 mv librdkafka-1.6.2/* src/librdkafka/
 rm -r librdkafka-1.6.2
@@ -39,10 +38,10 @@ cd ../..
 
 # Aws SDK
 
-wget https://github.com/aws/aws-sdk-cpp/archive/refs/tags/1.9.223.tar.gz -O aws-sdk-cpp.tar.gz
+wget -q https://github.com/aws/aws-sdk-cpp/archive/refs/tags/1.9.223.tar.gz -O aws-sdk-cpp.tar.gz
 tar xzf aws-sdk-cpp.tar.gz
 cd aws-sdk-cpp-1.9.223
-./prefetch_crt_dependency.sh
+./prefetch_crt_dependency.sh > /dev/null
 cd ..
 mv aws-sdk-cpp-1.9.223/* src/aws-sdk-cpp/
 rm -r aws-sdk-cpp-1.9.223
@@ -63,7 +62,7 @@ cd ../../..
 
 # spdlog
 
-wget https://github.com/gabime/spdlog/archive/refs/tags/v1.9.2.tar.gz -O spdlog.tar.gz
+wget -q https://github.com/gabime/spdlog/archive/refs/tags/v1.9.2.tar.gz -O spdlog.tar.gz
 tar xzf spdlog.tar.gz
 mv spdlog-1.9.2/* src/spdlog/
 rm -r spdlog-1.9.2
@@ -79,4 +78,4 @@ cd ../../..
 
 # Nlohmann JSON
 mkdir -p bin/include/nlohmann/
-wget https://raw.githubusercontent.com/nlohmann/json/v3.10.5/single_include/nlohmann/json.hpp -O bin/include/nlohmann/json.hpp
+wget -q https://raw.githubusercontent.com/nlohmann/json/v3.10.5/single_include/nlohmann/json.hpp -O bin/include/nlohmann/json.hpp

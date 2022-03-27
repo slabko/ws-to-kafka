@@ -66,7 +66,6 @@ int main()
     return 1;
   }
 
-
   MessageStore message_store { kBufferSize };
   while (true) {
     auto msg = std::unique_ptr<RdKafka::Message> { consumer->consume(kPullTimeoutMs) };
@@ -87,7 +86,7 @@ int main()
       message_store.Push(static_cast<const char*>(msg->payload()), static_cast<unsigned int>(msg->len()));
       message_store.Push("\n"s);
 
-      if (message_store.Size() > (kFileSize)) {
+      if (message_store.CompressedSize() > (kFileSize)) {
         spdlog::info("Commiting checkpoint");
         message_store.CommitCheckpoint();
         consumer->commitSync(msg.get());

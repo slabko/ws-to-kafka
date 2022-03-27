@@ -17,8 +17,7 @@ workdir build
 run cmake .. && make -j
 
 
-from gcc
-run apt update && apt install libsasl2-dev libzstd-dev liblz4-dev && apt clean
+from gcc:11
 copy --from=0 /root/ws-to-kafka/build/src/wssource/wssource /usr/bin/
 copy --from=0 /root/ws-to-kafka/build/src/s3sink/s3sink /usr/bin/
 copy --from=0 /root/ws-to-kafka/thirdparty/bin/lib/librdkafka.so.1 /usr/lib/x86_64-linux-gnu/
