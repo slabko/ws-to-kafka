@@ -8,8 +8,8 @@
 
 #include "message_store.hpp"
 
-const unsigned int kFileSize = 10 * 1025 * 1024;
-const unsigned int kBufferSize = 11 * 1024 * 1024;
+const unsigned int kFileSize = 250 * 1025 * 1024;
+const unsigned int kBufferSize = kFileSize + (1024 * 1024);
 const unsigned int kPullTimeoutMs = 1000;
 
 using slabko::s3sink::MessageStore;
