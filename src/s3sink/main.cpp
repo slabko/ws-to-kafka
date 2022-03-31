@@ -29,7 +29,7 @@ int main()
   }
 
   Aws::SDKOptions options;
-  options.loggingOptions.logLevel = Aws::Utils::Logging::LogLevel::Debug;
+  options.loggingOptions.logLevel = Aws::Utils::Logging::LogLevel::Warn;
   Aws::InitAPI(options);
 
   auto conf = std::unique_ptr<RdKafka::Conf>(
