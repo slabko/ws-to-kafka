@@ -1,7 +1,7 @@
 #ifndef KAFKA_PRODUCER_H_INCLUDED
 #define KAFKA_PRODUCER_H_INCLUDED
 
-#include "../pch.h"
+#include "pch.h"
 #include <atomic>
 
 namespace slabko::wskafka {
