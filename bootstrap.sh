@@ -36,30 +36,6 @@ make && \
 make install && \
 cd ../..
 
-# Aws SDK
-
-wget -q https://github.com/aws/aws-sdk-cpp/archive/refs/tags/1.9.223.tar.gz -O aws-sdk-cpp.tar.gz
-tar xzf aws-sdk-cpp.tar.gz
-cd aws-sdk-cpp-1.9.223
-./prefetch_crt_dependency.sh > /dev/null
-cd ..
-mv aws-sdk-cpp-1.9.223/* src/aws-sdk-cpp/
-rm -r aws-sdk-cpp-1.9.223
-rm aws-sdk-cpp.tar.gz
-
-cd src/aws-sdk-cpp && \
-mkdir build && cd build && \
-cmake .. \
-    -DENABLE_TESTING=OFF \
-    -DAUTORUN_UNIT_TESTS=OFF \
-    -DBUILD_ONLY="s3" \
-    -DCMAKE_BUILD_TYPE=Release \
-    -DCMAKE_INSTALL_PREFIX=$(pwd)/../../../bin && \
-make -j && \
-make install && \
-cd ../../..
-
-
 # spdlog
 
 wget -q https://github.com/gabime/spdlog/archive/refs/tags/v1.9.2.tar.gz -O spdlog.tar.gz
